@@ -9,9 +9,9 @@ import (
 // ------------------------------------------------------------------------------------------------------------
 type (
 	Student struct {
-		ID	int
+		ID			int
 		Identifier	string
-		Name	string
+		Name		string
 	}
 
 	DB struct {
