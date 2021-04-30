@@ -9,9 +9,9 @@ import (
 // ------------------------------------------------------------------------------------------------------------
 type (
 	Student struct {
-		ID 		 	int
-		Identifier 	string
-		Name 		string
+		ID	int
+		Identifier	string
+		Name	string
 	}
 
 	DB struct {
@@ -24,10 +24,10 @@ type (
 
 // ------------------------------------------------------------------------------------------------------------
 type StudentRepository interface {
-	GetAll() 				[]Student
-	GetById(ID int) 		*Student
-	Save(student *Student) 	*Student
-	DeleteById(ID int) 		*Student
+	GetAll() []Student
+	GetById(ID int) *Student
+	Save(student *Student) *Student
+	DeleteById(ID int) *Student
 	UpdateById(ID int, newStudent *Student)	*Student
 }
 
