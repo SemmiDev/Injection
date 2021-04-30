@@ -1,161 +1,225 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"log"
-	"strconv"
-	"time"
 )
 
+// DB & ENTITY
+
+// ------------------------------------------------------------------------------------------------------------
 type (
-	Person struct {
-		ID	 string
-		Name string
+	Student struct {
+		ID 		 	int
+		Identifier 	string
+		Name 		string
 	}
 
-	PersonRepository struct {
-		person []Person
-	}
-
-	PersonService struct {
-		PersonRepository PersonRepository
-	}
-
-	PersonController struct {
-		PersonService PersonService
-	}
-
-	personRepository interface {
-		GetPersonByName(name string) (*Person, error)
-		Save(person *Person) bool
-	}
-
-	personService interface {
-		FindPersonByName(name string) (*Person, error)
-		SavePerson(person *Person) bool
-	}
-
-	personController interface {
-		FindPersonByName()
-		SavePerson()
+	DB struct {
+		database []Student
 	}
 )
+// ------------------------------------------------------------------------------------------------------------
 
-// Dummy
-func NewDummyPerson() *[]Person {
-	return &[]Person{
-		{"1","Sam"},
-		{"2","Dev"},
-		{"3","sammidev"},
-	}
-}
+// CONTROLLER
 
-// Provide
-func ProvidePersonRepository(person *[]Person) PersonRepository {
-	return PersonRepository{person: *person}
-}
-func ProvidePersonService(p PersonRepository) PersonService {
-	return PersonService{PersonRepository: p}
-}
-func ProvidePersonController(s PersonService) PersonController {
-	return PersonController{PersonService: s}
+// ------------------------------------------------------------------------------------------------------------
+type StudentRepository interface {
+	GetAll() 				[]Student
+	GetById(ID int) 		*Student
+	Save(student *Student) 	*Student
+	DeleteById(ID int) 		*Student
+	UpdateById(ID int, newStudent *Student)	*Student
 }
 
-// Impl
-func repositoryImpl() personRepository{
-	return &PersonRepository{}
-}
-func serviceImpl() personService{
-	return &PersonService{}
-}
-func controllerImpl() personController{
-	return &PersonController{}
+type mySqlRepo struct {
+	db *DB
 }
 
-// Repository
-func (r *PersonRepository) GetPersonByName(name string)  (*Person, error){
-	log.Println("REPOSITORY PROCESSING ... ")
-	time.Sleep(1 * time.Second)
-	for _, v := range r.person {
-		if v.Name == name {
-			return &v, nil
+func newStudentRepository(db *DB) StudentRepository {
+	return &mySqlRepo{db: db}
+}
+
+func (repo *mySqlRepo) GetAll() []Student {
+	return repo.db.database
+}
+
+func (repo *mySqlRepo) GetById(ID int) *Student {
+	for _, v := range repo.db.database {
+		if v.ID == ID {
+			return &v
 		}
 	}
-	return &Person{}, errors.New("PERSON TIDAK DITEMUKAN")
-}
-func (r *PersonRepository) Save(person *Person) bool {
-	log.Println("REPOSITORY PROCESSING ... ")
-	time.Sleep(1 * time.Second)
-	first := len(r.person)
-	r.person = append(r.person, *person)
-	second := len(r.person)
-	if second > first {
-		return true
-	}
-	return false
+	return nil
 }
 
-// Service
-func (s *PersonService) FindPersonByName(name string) (*Person, error) {
-	log.Println("SERVICE LAYER PROCESSING ... ")
-	time.Sleep(1 * time.Second)
-	result, err :=s.PersonRepository.GetPersonByName(name)
-	if err != nil {
-		return &Person{}, err
+func (repo *mySqlRepo) Save(student *Student) *Student {
+	id := len(repo.db.database)
+	if id == 0 {
+		student.ID = 0
+	}else {
+		student.ID = id
 	}
-	return result, nil
-}
-func (s *PersonService) SavePerson(person *Person) bool {
-	log.Println("SERVICE LAYER PROCESSING ... ")
-	time.Sleep(1 * time.Second)
-	return s.PersonRepository.Save(person)
+
+	repo.db.database = append(repo.db.database, *student)
+	return student
 }
 
-// Controller
-func (p *PersonController) FindPersonByName() {
-	log.Println("CONTROLLER PROCESSING ... ")
-	time.Sleep(1 * time.Second)
+func (repo *mySqlRepo) DeleteById(ID int) *Student {
+	student := repo.GetById(ID)
+	temp := repo.db.database[:ID]
+	repo.db.database =  append(temp, repo.db.database[ID+1:]...)
+	return student
+}
 
-	var name string
-	fmt.Print("masukkan nama yang ingin anda cari : ")
-	_, _ = fmt.Scanln(&name)
-	result,err := p.PersonService.FindPersonByName(name)
-	if err != nil {
-		fmt.Println(err)
+func (repo *mySqlRepo) UpdateById(ID int, newStudent *Student) *Student {
+	var std Student
+
+	for _, v := range repo.db.database {
+		if v.ID == ID {
+			std = v
+		}
 	}
+
+	id := std.ID
+
+	temp := repo.db.database[ID:]
+	repo.db.database = append(temp, repo.db.database[ID+1:]...)
+
+	newStudent.ID = id
+	repo.Save(newStudent)
+	return newStudent
+}
+// ------------------------------------------------------------------------------------------------------------
+
+// SERVICE
+
+// ------------------------------------------------------------------------------------------------------------
+type StudentService interface {
+	FindAllStudents() []Student
+	FindStudentById(ID int) *Student
+	CreateStudent(student *Student) *Student
+	DeleteStudentById(ID int) *Student
+	UpdateById(ID int, newStudent *Student) *Student
+}
+
+type studentService struct {
+	repository StudentRepository
+}
+
+func newStudentService(repo StudentRepository) StudentService {
+	return &studentService{repository: repo}
+}
+
+func (service *studentService) FindAllStudents() []Student {
+	return service.repository.GetAll()
+}
+
+func (service *studentService) FindStudentById(ID int) *Student {
+	return service.repository.GetById(ID)
+}
+
+func (service *studentService) CreateStudent(student *Student) *Student {
+	return service.repository.Save(student)
+}
+
+func (service *studentService) DeleteStudentById(ID int) *Student {
+	return service.repository.DeleteById(ID)
+}
+
+func (service *studentService) UpdateById(ID int, newStudent *Student) *Student {
+	return service.repository.UpdateById(ID, newStudent)
+}
+// ------------------------------------------------------------------------------------------------------------
+
+// CONTROLLER
+
+// ------------------------------------------------------------------------------------------------------------
+type StudentController interface {
+	GetAllStudents()
+	GetStudentById()
+	SaveStudent()
+	DeleteStudentById()
+	UpdateStudentById()
+}
+
+type studentController struct {
+	studentService StudentService
+}
+
+func newStudentController(service StudentService) StudentController {
+	return &studentController{service}
+}
+
+func (s studentController) GetAllStudents() {
+	fmt.Println(s.studentService.FindAllStudents())
+}
+
+func (s studentController) GetStudentById() {
+	fmt.Print("Masukkan ID : ")
+	var ID int
+	fmt.Scan(&ID)
+	fmt.Println(s.studentService.FindStudentById(ID))
+}
+
+func (s studentController) SaveStudent() {
+	var stdIN Student
+	var identifier,name string
+
+	fmt.Print("IDENTIFIER : ")
+	fmt.Scan(&identifier)
+
+	fmt.Print("NAME : ")
+	fmt.Scan(&name)
+
+	stdIN = Student{Identifier: identifier, Name: name}
+	result := s.studentService.CreateStudent(&stdIN)
 	fmt.Println(result)
 }
-func (p *PersonController) SavePerson() {
-	log.Println("CONTROLLER PROCESSING ... ")
-	time.Sleep(1 * time.Second)
 
-	var name string
-	fmt.Print("masukkan nama : ")
-	_, _ = fmt.Scanln(&name)
-
-	var person = Person{
-		ID: strconv.Itoa(len(p.PersonService.PersonRepository.person) + 1),
-		Name: name,
-	}
-
-	result := p.PersonService.SavePerson(&person)
+func (s studentController) DeleteStudentById() {
+	fmt.Print("Masukkan ID : ")
+	var ID int
+	fmt.Scan(&ID)
+	result := s.studentService.DeleteStudentById(ID)
 	fmt.Println(result)
 }
 
-// Main
+func (s studentController) UpdateStudentById() {
+	fmt.Print("Masukkan ID : ")
+	var ID int
+	fmt.Scan(&ID)
+
+	var identifier,name string
+
+	fmt.Print("IDENTIFIER : ")
+	fmt.Scan(&identifier)
+
+	fmt.Print("NAME : ")
+	fmt.Scan(&name)
+	newStudent := Student{Identifier: identifier, Name: name}
+	fmt.Println(s.studentService.UpdateById(ID, &newStudent))
+}
+// ------------------------------------------------------------------------------------------------------------
+
 func main(){
-	fmt.Println("WRAP")
+	var db []Student
+	database := DB{database: db}
 
-	person := NewDummyPerson()
-	fmt.Println("db\t ->\t ", person)
+	// INJECT
+	repository := newStudentRepository(&database)
+	service := newStudentService(repository)
+	controller := newStudentController(service)
 
-	repo := ProvidePersonRepository(person)
-	fmt.Println("repo\t ->\t ", repo)
+	controller.SaveStudent()
+	controller.SaveStudent()
+	controller.SaveStudent()
 
-	service := ProvidePersonService(repo)
-	fmt.Println("service\t ->\t ",service)
+	controller.GetAllStudents()
 
-	controller := ProvidePersonController(service)
-	fmt.Println("controller ->\t ",  controller)
+	controller.GetStudentById()
+	controller.DeleteStudentById()
+	controller.GetAllStudents()
+
+	controller.UpdateStudentById()
+	controller.GetAllStudents()
 }
